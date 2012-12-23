@@ -8,11 +8,39 @@ describe Her::Model::Paths do
         spawn_model "Foo::User"
       end
 
+      describe "#request_path" do
+        it "builds paths with defaults defined in request_path_parameters" do
+          class Foo::User
+            def request_path_parameters; {:_bar => "the_bar"}; end
+          end
+          Foo::User.path_prefix "/:bar"
+          Foo::User.new(:id => "foo").request_path.should == "/the_bar/users/foo"
+          Foo::User.new(:id => nil).request_path.should == "/the_bar/users"
+          Foo::User.new.request_path.should == "/the_bar/users"
+        end
+      end
+
       describe "#build_request_path" do
         it "builds paths with defaults" do
           Foo::User.build_request_path(:id => "foo").should == "users/foo"
           Foo::User.build_request_path(:id => nil).should == "users"
           Foo::User.build_request_path.should == "users"
+        end
+
+        it "builds paths with defaults defined in request_path_parameters" do
+          class Foo::User
+            def self.request_path_parameters; {:_bar => "the_bar"}; end
+          end
+          Foo::User.path_prefix "/:bar"
+          Foo::User.build_request_path(:id => "foo").should == "/the_bar/users/foo"
+          Foo::User.build_request_path(:id => nil).should == "/the_bar/users"
+          Foo::User.build_request_path.should == "/the_bar/users"
+        end
+
+        it "builds paths with custom path prefix" do
+          Foo::User.path_prefix "/site"
+          Foo::User.build_request_path(:id => "foo").should == "/site/users/foo"
+          Foo::User.build_request_path.should == "/site/users"
         end
 
         it "builds paths with custom collection path" do
@@ -21,20 +49,35 @@ describe Her::Model::Paths do
           Foo::User.build_request_path.should == "/utilisateurs"
         end
 
+        it "builds paths with custom prefix and collection path" do
+          Foo::User.path_prefix "/site"
+          Foo::User.collection_path "/utilisateurs"
+          Foo::User.build_request_path(:id => "foo").should == "/site/utilisateurs/foo"
+          Foo::User.build_request_path.should == "/site/utilisateurs"
+        end
+
         it "builds paths with custom relative collection path" do
           Foo::User.collection_path "utilisateurs"
           Foo::User.build_request_path(:id => "foo").should == "utilisateurs/foo"
           Foo::User.build_request_path.should == "utilisateurs"
         end
 
+        it "builds paths with custom relative prefix and collection path" do
+          Foo::User.path_prefix "site"
+          Foo::User.collection_path "utilisateurs"
+          Foo::User.build_request_path(:id => "foo").should == "site/utilisateurs/foo"
+          Foo::User.build_request_path.should == "site/utilisateurs"
+        end
+
         it "builds paths with custom collection path with multiple variables" do
+          Foo::User.path_prefix "/sites/:site_id"
           Foo::User.collection_path "/organizations/:organization_id/utilisateurs"
 
-          Foo::User.build_request_path(:id => "foo", :_organization_id => "acme").should == "/organizations/acme/utilisateurs/foo"
-          Foo::User.build_request_path(:_organization_id => "acme").should == "/organizations/acme/utilisateurs"
+          Foo::User.build_request_path(:id => "foo", :_organization_id => "acme", :_site_id => "test").should == "/sites/test/organizations/acme/utilisateurs/foo"
+          Foo::User.build_request_path(:_organization_id => "acme", :_site_id => "test").should == "/sites/test/organizations/acme/utilisateurs"
 
-          Foo::User.build_request_path(:id => "foo", :organization_id => "acme").should == "/organizations/acme/utilisateurs/foo"
-          Foo::User.build_request_path(:organization_id => "acme").should == "/organizations/acme/utilisateurs"
+          Foo::User.build_request_path(:id => "foo", :organization_id => "acme", :site_id => "test").should == "/sites/test/organizations/acme/utilisateurs/foo"
+          Foo::User.build_request_path(:organization_id => "acme", :site_id => "test").should == "/sites/test/organizations/acme/utilisateurs"
         end
 
         it "builds paths with custom relative collection path with multiple variables" do

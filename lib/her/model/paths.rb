@@ -12,10 +12,27 @@ module Her
       #
       #   User.find(1) # Fetched via GET /utilisateurs/1
       def request_path
-        self.class.build_request_path(@data.dup)
+        parameters = respond_to?(:request_path_parameters, true) ? request_path_parameters : {}
+        self.class.build_request_path(parameters.merge(@data))
       end
 
       module ClassMethods
+        # Defines a custom path prefix for the resource
+        #
+        # @example
+        #  class User
+        #    include Her::Model
+        #    path_prefix "/sites/:site_id"
+        #  end
+        def path_prefix(prefix=nil)
+          @her_path_prefix ||= begin
+            superclass.collection_path.dup if superclass.respond_to?(:path_prefix)
+          end
+
+          return @her_path_prefix unless prefix
+          @her_path_prefix = prefix
+        end
+
         # Defines a custom collection path for the resource
         #
         # @example
@@ -62,7 +79,10 @@ module Her
           unless path.is_a?(String)
             parameters = path || {}
             path = parameters.include?(:id) && !parameters[:id].nil? ? resource_path : collection_path
+            path = File.join(path_prefix, path) if path_prefix
           end
+
+          parameters = request_path_parameters.merge(parameters) if respond_to?(:request_path_parameters, true)
 
           path.gsub(/:([\w_]+)/) do
             # Look for :key or :_key, otherwise raise an exception
